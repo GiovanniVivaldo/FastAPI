@@ -1,18 +1,29 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Response,status
+from config.db import conn
+from schemas.user import userEntity,usersEntity
+from models.user import User
+from passlib.hash import sha256_crypt
+from bson import objectid
+from starlette.status import HTTP_204_NO_CONTENT
 
 user = APIRouter()
 
-@user.get('/users/')
+@user.get('/users', response_model= list[User], tags=['Users'])
 def get_users():
-    return {"Get"}
+    return userEntity(conn.local.user.find())
 
-@user.get('/users/{id}')
-def get_users():
-    return {"Get"}
+@user.post('/user', response_model= list[User], tags = ['Users'])
+def create_user(user: User):
+    new_user = dict(user)
+    new_user['password'] = sha256_crypt.encrypt(new_user['password'])
+    del new_user['id']
+    id = conn.local.user.insert_one(new_user).inserted_id
+    user = conn.local.user.find_one({"_id" : id})
+    return userEntity(user)
 
-@user.post('/users/')
-def create_users():
-    return {"crear"}
+@user.get('/user/{id}', response_model=User, tags = ['Users'])
+def find_user(id: str):
+    return userEntity(conn.local.user.find_one({"_id": ObjectId(id)}))
 
 @user.put('/users/{id}')
 def update_users():
